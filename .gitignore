@@ -1,0 +1,5 @@
+/*build*/
+*compile_commands.json
+*.sublime-workspace
+*.sublime-project
+/.clangd/
