@@ -17,6 +17,7 @@ namespace fae
 Template::Template()
   : m_fragments(),
     m_varNames(),
+    m_includeNames(),
     m_bytecode()
 {
   compile("");
@@ -25,14 +26,16 @@ Template::Template()
 Template::Template(const std::string& str)
   : m_fragments(),
     m_varNames(),
+    m_includeNames(),
     m_bytecode()
 {
   compile(str);
 }
 
 std::string Template::render(std::function<void(const std::uint16_t, std::ostringstream&)>&& rPrintFunc,
-  std::function<bool(const std::uint16_t)> rKeyExistsFunc,
-  std::function<bool(const std::uint16_t, const std::uint16_t)> rNextListItem)
+  std::function<bool(const std::uint16_t)>&& rKeyExistsFunc,
+  std::function<bool(const std::uint16_t, const std::uint16_t)>&& rNextListItem,
+  std::function<void(const std::uint16_t, std::ostringstream&)>&& rRenderInclude)
 {
   std::ostringstream stream;
 
@@ -80,8 +83,11 @@ std::string Template::render(std::function<void(const std::uint16_t, std::ostrin
       case Jump:
         pc = (m_bytecode[pc] & 0x1FFF) - 1;
         break;
+      case Include:
+        rRenderInclude(op & 0x1FFF, stream);
+        break;
       default:
-        throw std::runtime_error("AHHHHH");
+        throw FaeException("Unrecognized instruction encountered in template VM");
     }
   }
 
@@ -96,6 +102,7 @@ void Template::compile(const std::string& buf)
   std::regex ifExp(R"(^if\s+([a-zA-Z_][a-zA-Z0-9_]*)\))");
   std::regex endExp("^end\\)");
   std::regex forExp(R"(^for\s++([a-zA-Z_][a-zA-Z0-9_]*)\s++in\s++([a-zA-Z_][a-zA-Z0-9_]*)\))");
+  std::regex includeExp(R"(^include ([^)]+)\))");
 
   std::smatch matches;
 
@@ -186,6 +193,12 @@ void Template::compile(const std::string& buf)
       // Once list is empty, jump to first instruction after conditional block
       m_bytecode.push_back(Opcode::ListEndJump);
       offsetStack.push(m_bytecode.size() - 1);
+    }
+    else if (std::regex_search(buf.begin() + expStart + 2, buf.end(), matches, includeExp))
+    {
+      // Found an include
+      m_bytecode.push_back(Opcode::Include | m_includeNames.size());
+      m_includeNames.push_back(matches[1]);
     }
     else
     {

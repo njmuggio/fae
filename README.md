@@ -17,6 +17,9 @@ gets executed whenever the template is rendered.
 All template commands occur between `$(` and `)`. Supported commands are listed
 in the sections below.
 
+If loading and rendering templates via fae::Library, nested/included templates
+are supported.
+
 ## Supported Commands
 
 ### Variable Substitution
@@ -36,6 +39,19 @@ $(if names)
   $(end)
 </ul>
 $(end)
+```
+
+### Including Other Templates
+
+```html
+<!-- header.html -->
+<h1>$(pageTitle)</h1>
+```
+
+```html
+<!-- post.html -->
+$(include header.html)
+$(postContent)
 ```
 
 ## History
