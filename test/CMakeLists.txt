@@ -8,6 +8,7 @@ add_subdirectory(Catch2-${FAE_CATCH_VERSION})
 add_executable(testFae)
 target_sources(testFae PRIVATE
   main.cpp
+  testLibrary.cpp
   testTemplate.cpp
 )
 target_link_libraries(testFae PUBLIC Catch2::Catch2 fae::fae)

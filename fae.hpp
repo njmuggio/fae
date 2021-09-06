@@ -63,6 +63,18 @@ static_assert(!IsContainer<int>::value);
 } // namespace detail
 
 /**
+ * @brief Used for exceptions that occur in fae
+ */
+using FaeException = std::runtime_error;
+
+/**
+ * @brief Convenience type for template inputs
+ * @tparam T Variant types
+ */
+template <typename... T>
+using Input = std::map<std::string, std::variant<T...>>;
+
+/**
  * @brief A parsed template
  */
 class Template
@@ -263,7 +275,45 @@ class Library
      */
     Library(const std::filesystem::path& directory, bool recursive, bool ignoreBadTemplates = true);
 
+    /**
+     * @brief Render a template
+     * @tparam T Variant types
+     * @param templateName Name of the template to render
+     * @param input Input to the template. This is a map from std::string to a variant
+     * @throws Throws a FaeException if the specified template is not in the library
+     * @return Rendered template contents
+     */
+    template <typename... T>
+    std::string render(const std::string& templateName, const std::map<std::string, std::variant<T...>>& input)
+    {
+      auto iter = m_templates.find(templateName);
+      if (iter != m_templates.end())
+      {
+        return iter->second.render(input);
+      }
+
+      std::stringstream stream;
+      stream << "Could not find a template named '" << templateName << '\'';
+      throw FaeException(stream.str());
+    }
+
+    /**
+     * @brief Reload the template library from disk
+     * @param discard If true, existing templates will be discarded before reading new templates
+     */
+    void reload(bool discard = true);
+
   private:
+    /**
+     * @brief Load and compile a template, and add it to the library
+     * @param file Path to the template file
+     */
+    void addTemplate(const std::filesystem::path& file);
+
+    std::filesystem::path m_directory;
+    bool m_recursive;
+    bool m_ignoreBadTemplates;
+
     std::map<std::string, Template> m_templates; //!< Name/template map
 };
 } // namespace fae

@@ -187,6 +187,10 @@ void Template::compile(const std::string& buf)
       m_bytecode.push_back(Opcode::ListEndJump);
       offsetStack.push(m_bytecode.size() - 1);
     }
+    else
+    {
+      throw FaeException("Invalid template");
+    }
 
     processed = expStart + 2 + matches[0].length();
   }
@@ -212,5 +216,77 @@ void Template::addFragment(const std::string::const_iterator& begin, const std::
 {
   m_fragments.emplace_back(begin, end);
   m_bytecode.push_back(Opcode::Copy | (m_fragments.size() - 1));
+}
+
+Library::Library()
+  : m_directory(),
+    m_recursive(),
+    m_ignoreBadTemplates(),
+    m_templates()
+{
+  // Empty
+}
+
+Library::Library(const std::filesystem::path& directory, bool recursive, bool ignoreBadTemplates)
+  : m_directory(directory),
+    m_recursive(recursive),
+    m_ignoreBadTemplates(ignoreBadTemplates),
+    m_templates()
+{
+  reload(false);
+}
+
+void Library::reload(bool discard)
+{
+  if (discard)
+  {
+    m_templates.clear();
+  }
+
+  if (m_recursive)
+  {
+    for (const auto& file : std::filesystem::recursive_directory_iterator(m_directory))
+    {
+      addTemplate(file);
+    }
+  }
+  else
+  {
+    for (const auto& file : std::filesystem::directory_iterator(m_directory))
+    {
+      addTemplate(file);
+    }
+  }
+}
+
+void Library::addTemplate(const std::filesystem::path& file)
+{
+  if (!std::filesystem::is_regular_file(file))
+  {
+    return;
+  }
+
+  std::ifstream stream(file, std::ios::binary);
+  stream.seekg(0, std::ios::end);
+  std::string buf(stream.tellg(), 0);
+  stream.seekg(0);
+  stream.read(buf.data(), buf.size());
+  stream.close();
+
+  if (m_ignoreBadTemplates)
+  {
+    try
+    {
+      m_templates[file.lexically_relative(m_directory)] = Template(buf);
+    }
+    catch (const FaeException&)
+    {
+      // Ignored
+    }
+  }
+  else
+  {
+    m_templates[file.lexically_relative(m_directory)] = Template(buf);
+  }
 }
 } // namespace fae

@@ -209,3 +209,22 @@ TEST_CASE("loops", "[template]")
     REQUIRE(tmpl.render(input) == "12345");
   }
 }
+
+TEST_CASE("invalid template", "[template]")
+{
+  REQUIRE_THROWS_AS([](){ fae::Template t("$()"); }(), fae::FaeException);
+
+  REQUIRE_THROWS_AS([](){ fae::Template t("$(if spaceAfter )"); }(), fae::FaeException);
+
+  REQUIRE_THROWS_AS([](){ fae::Template t("$(if word anotherWord)"); }(), fae::FaeException);
+
+  REQUIRE_THROWS_AS([](){ fae::Template t("$(not-a-valid-variable-name)"); }(), fae::FaeException);
+
+  REQUIRE_THROWS_AS([](){ fae::Template t("$(for n)"); }(), fae::FaeException);
+
+  REQUIRE_THROWS_AS([](){ fae::Template t("$(for n in)"); }(), fae::FaeException);
+
+  REQUIRE_THROWS_AS([](){ fae::Template t("$(for n in spaceAfter )"); }(), fae::FaeException);
+
+  REQUIRE_THROWS_AS([](){ fae::Template t("$(for n in word anotherWord)"); }(), fae::FaeException);
+}
