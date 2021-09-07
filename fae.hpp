@@ -165,7 +165,11 @@ class Template
       ListEndJump = 0xA000,
       Jump = 0xC000,
       Include = 0xE000,
+      TrueJump = 0x1000,
     };
+
+    static constexpr const std::uint16_t OpMask = 0xF0'00;        //!< Mask for the opcode part of an instruction
+    static constexpr const std::uint16_t ImmediateMask = 0x0F'FF; //!< Mask for the immediate part of an instruction
 
     std::vector<std::uint16_t> m_bytecode; //!< Bytecode for this VM
 

@@ -182,6 +182,67 @@ TEST_CASE("if expression", "[template]")
   }
 }
 
+TEST_CASE("if not expression", "[template]")
+{
+  std::map<std::string, std::variant<bool, int, std::string>> input;
+
+  input["bTrue"] = true;
+  input["bFalse"] = false;
+  input["i0"] = 0;
+  input["i5"] = 5;
+  input["sEmpty"] = "";
+  input["sFull"] = "full";
+
+  SECTION("missing field")
+  {
+    fae::Template tmpl("$(if not iDontExist)found$(end)");
+
+    REQUIRE(tmpl.render(input) == "found");
+  }
+
+  SECTION("true bool")
+  {
+    fae::Template tmpl("$(if not bTrue)found$(end)");
+
+    REQUIRE(tmpl.render(input) == "");
+  }
+
+  SECTION("false bool")
+  {
+    fae::Template tmpl("$(if not bFalse)found$(end)");
+
+    REQUIRE(tmpl.render(input) == "");
+  }
+
+  SECTION("zero int")
+  {
+    fae::Template tmpl("$(if not i0)found$(end)");
+
+    REQUIRE(tmpl.render(input) == "");
+  }
+
+  SECTION("nonzero int")
+  {
+    fae::Template tmpl("$(if not i5)found$(end)");
+
+    REQUIRE(tmpl.render(input) == "");
+  }
+
+  SECTION("empty string")
+  {
+    fae::Template tmpl("$(if not sEmpty)found$(end)");
+
+    REQUIRE(tmpl.render(input) == "");
+  }
+
+  SECTION("full string")
+  {
+    fae::Template tmpl("$(if not sFull)found$(end)");
+
+    REQUIRE(tmpl.render(input) == "");
+  }
+}
+
 TEST_CASE("loops", "[template]")
 {
   std::map<std::string, std::variant<std::array<int, 5>, std::vector<int>, std::deque<int>>> input;
@@ -217,6 +278,10 @@ TEST_CASE("invalid template", "[template]")
   REQUIRE_THROWS_AS([](){ fae::Template t("$(if spaceAfter )"); }(), fae::FaeException);
 
   REQUIRE_THROWS_AS([](){ fae::Template t("$(if word anotherWord)"); }(), fae::FaeException);
+
+  REQUIRE_THROWS_AS([](){ fae::Template t("$(if not spaceAfter )"); }(), fae::FaeException);
+
+  REQUIRE_THROWS_AS([](){ fae::Template t("$(if not word anotherWord)"); }(), fae::FaeException);
 
   REQUIRE_THROWS_AS([](){ fae::Template t("$(not-a-valid-variable-name)"); }(), fae::FaeException);
 

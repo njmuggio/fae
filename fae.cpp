@@ -50,41 +50,50 @@ std::string Template::render(std::function<void(const std::uint16_t, std::ostrin
       break;
     }
 
-    switch (op & 0xE000)
+    switch (op & OpMask)
     {
       case Copy:
-        stream << m_fragments[op & 0x1FFF];
+        stream << m_fragments[op & ImmediateMask];
         break;
       case Substitute:
-        rPrintFunc(op & 0x1FFF, stream);
+        rPrintFunc(op & ImmediateMask, stream);
         break;
       case Immediate:
         // Nothing to do
         break;
       case FalseJump:
       {
-        std::uint16_t varIdx = m_bytecode[pc - 1] & 0x1FFF;
+        std::uint16_t varIdx = m_bytecode[pc - 1] & ImmediateMask;
         if (!rKeyExistsFunc(varIdx))
         {
-          pc = (m_bytecode[pc] & 0x1FFF) - 1;
+          pc = (m_bytecode[pc] & ImmediateMask) - 1;
+        }
+        break;
+      }
+      case TrueJump:
+      {
+        std::uint16_t varIdx = m_bytecode[pc - 1] & ImmediateMask;
+        if (rKeyExistsFunc(varIdx))
+        {
+          pc = (m_bytecode[pc] & ImmediateMask) - 1;
         }
         break;
       }
       case ListEndJump:
       {
-        std::uint16_t singleIdx = m_bytecode[pc - 2] & 0x1FFF;
-        std::uint16_t listIdx = m_bytecode[pc - 1] & 0x1FFF;
+        std::uint16_t singleIdx = m_bytecode[pc - 2] & ImmediateMask;
+        std::uint16_t listIdx = m_bytecode[pc - 1] & ImmediateMask;
         if (!rNextListItem(singleIdx, listIdx))
         {
-          pc = (m_bytecode[pc] & 0x1FFF) - 1;
+          pc = (m_bytecode[pc] & ImmediateMask) - 1;
         }
         break;
       }
       case Jump:
-        pc = (m_bytecode[pc] & 0x1FFF) - 1;
+        pc = (m_bytecode[pc] & ImmediateMask) - 1;
         break;
       case Include:
-        rRenderInclude(op & 0x1FFF, stream);
+        rRenderInclude(op & ImmediateMask, stream);
         break;
       default:
         throw FaeException("Unrecognized instruction encountered in template VM");
@@ -100,6 +109,7 @@ void Template::compile(const std::string& buf)
 
   std::regex varSubExp(R"(^([a-zA-Z_][a-zA-Z0-9_]*)\))");
   std::regex ifExp(R"(^if\s+([a-zA-Z_][a-zA-Z0-9_]*)\))");
+  std::regex ifNotExp(R"(^if\s+not\s+([a-zA-Z_][a-zA-Z0-9_]*)\))");
   std::regex endExp("^end\\)");
   std::regex forExp(R"(^for\s++([a-zA-Z_][a-zA-Z0-9_]*)\s++in\s++([a-zA-Z_][a-zA-Z0-9_]*)\))");
   std::regex includeExp(R"(^include ([^)]+)\))");
@@ -149,7 +159,7 @@ void Template::compile(const std::string& buf)
     if (std::regex_search(buf.begin() + expStart + 2, buf.end(), matches, endExp))
     {
       // Found an end
-      if ((m_bytecode[offsetStack.top()] & 0xE000) == Opcode::ListEndJump)
+      if ((m_bytecode[offsetStack.top()] & OpMask) == Opcode::ListEndJump)
       {
         // Need to jump back to start of list
         m_bytecode.push_back(Opcode::Jump | offsetStack.top());
@@ -176,6 +186,18 @@ void Template::compile(const std::string& buf)
 
       // If variable evals to false, jump to first instruction after conditional block
       m_bytecode.push_back(Opcode::FalseJump); // Address updated once 'end' is found
+      offsetStack.push(m_bytecode.size() - 1);
+    }
+    else if (std::regex_search(buf.begin() + expStart + 2, buf.end(), matches, ifNotExp))
+    {
+      // Found an if not
+
+      // Push variable index
+      std::uint16_t idx = addVariable(matches[1]);
+      m_bytecode.push_back(Opcode::Immediate | idx);
+
+      // If variable evals to true, jump to first instruction after conditional block
+      m_bytecode.push_back(Opcode::TrueJump); // Address updated once 'end' is found
       offsetStack.push(m_bytecode.size() - 1);
     }
     else if (std::regex_search(buf.begin() + expStart + 2, buf.end(), matches, forExp))

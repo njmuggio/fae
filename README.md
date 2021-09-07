@@ -39,6 +39,9 @@ $(if names)
   $(end)
 </ul>
 $(end)
+$(if not names)
+<p>No names found</p>
+$(end)
 ```
 
 ### Including Other Templates
